@@ -1,6 +1,5 @@
 package psk.ponb;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.Getter;
@@ -16,6 +15,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -42,14 +43,41 @@ public class HttpClientApp {
         Optional<HttpRequest> getAllPosts = Optional.ofNullable(
                 app.prepareGetRequest(externalUrl, Map.of())
         );
+        List<Post> posts = null;
 
         if (getAllPosts.isPresent()) {
             Optional<HttpResponse<String>> response = Optional.ofNullable(app.callService(getAllPosts.get()));
             if (response.isPresent()) {
-                final ArrayList<Post> postsBoxType = new ArrayList<Post>();
-                new TypeReference(postsBoxType.getClass())
-                ArrayList<Post> posts = app.deserializeResult(response.get().body(), postsBoxType.getClass());
+                final Post[] postsArray = {};
+                posts = Arrays.stream(
+                        (Post[]) app.deserializeResult(response.get().body(), postsArray.getClass())).toList();
                 log.info("Called posts and got: {}", posts);
+            }
+        }
+
+        if (posts != null) {
+            final Post post = posts.stream().findFirst().orElse(null);
+            if (post != null) {
+                log.info("Called specific post with id: {}", post.getId());
+                final Optional<HttpRequest> singlePostRequest = Optional.ofNullable(
+                        app.prepareGetRequest(externalUrl + "/" + post.getId(), Map.of())
+                );
+                if (singlePostRequest.isPresent()) {
+                    log.info("Calling request: {}", singlePostRequest.get());
+                    Optional<HttpResponse<String>> response = Optional.ofNullable(app.callService(singlePostRequest.get()));
+                    if(response.isPresent()) {
+                        log.info("Received response: {}", response.get());
+                        final Optional<Post> receivedPost = Optional.ofNullable(
+                                app.deserializeResult(response.get().body(), Post.class));
+                        if (receivedPost.isPresent()) {
+                            log.debug("Received post: {}", receivedPost.get());
+                            log.info("Are the posts equals? : {}", receivedPost.get().equals(post));
+                        } else {
+                            log.warn("No post with given id: {} found.", post.getId());
+                        }
+
+                    }
+                }
             }
         }
 

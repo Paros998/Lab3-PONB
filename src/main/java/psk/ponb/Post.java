@@ -14,5 +14,5 @@ public class Post {
     private String user;
     private String avatar;
     private String title;
-    private LocalDateTime createdAt;
+    private String createdAt;
 }
